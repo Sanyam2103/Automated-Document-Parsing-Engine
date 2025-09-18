@@ -24,7 +24,7 @@ A FastAPI-based coding exercise simulating a vertical slice of a full-stack AI/s
 
 ```
 git clone https://github.com/Sanyam2103/Automated-Document-Parsing-Engine.git
-cd getgsa-parser
+cd Automated-Document-Parsing-Engine
 python -m venv .venv
  On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
