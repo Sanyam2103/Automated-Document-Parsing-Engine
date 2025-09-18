@@ -1,8 +1,4 @@
-Here’s a **minimal, complete `README.md`** for your FastAPI GetGSA Coding Exercise project—covering setup, usage, testing, and features as needed for assignment/demo purposes:
 
-***
-
-```markdown
 # GetGSA Doc Parser
 
 A FastAPI-based coding exercise simulating a vertical slice of a full-stack AI/service workflow for government procurement.
