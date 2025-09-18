@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GetGSA Document Checker</title>
+  <meta charset="UTF-8">
+  <style>
+    body { max-width: 540px; margin: 30px auto; font-family: sans-serif; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    textarea { width: 100%; min-height: 80px; font-family: monospace; margin-bottom: 8px;}
+    button { margin-top: 12px; padding: 10px 22px; font-size: 1rem; }
+    pre { background: #f4f6fa; padding: 11px; border-radius: 5px; overflow-x: auto; font-size: 0.93em;}
+    #response { margin-top: 22px; }
+  </style>
+</head>
+<body>
+  <h2>GetGSA Doc Parser</h2>
+  <form id="parseForm">
+    <label>Company Profile:</label>
+    <textarea name="company_profile" required></textarea>
+    <label>Past Performance:</label>
+    <textarea name="past_performance" required></textarea>
+    <button type="submit">Submit & Parse</button>
+  </form>
+  <div id="response"></div>
+  <script>
+    document.getElementById('parseForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const fd = new FormData(form);
+      document.getElementById('response').innerHTML = 'Loading...';
+      try {
+        const resp = await fetch('/api/ingest', {
+          method: 'POST',
+          body: fd
+        });
+        const data = await resp.json();
+        document.getElementById('response').innerHTML =
+          `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch (err) {
+        document.getElementById('response').textContent = 'Error!';
+      }
+    };
+  </script>
+</body>
+</html>
