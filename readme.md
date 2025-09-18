@@ -116,7 +116,5 @@ pytest
 
 MIT (or as appropriate for your use).
 
-```
 
-***
 
