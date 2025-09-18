@@ -23,10 +23,10 @@ A FastAPI-based coding exercise simulating a vertical slice of a full-stack AI/s
 ### 1. **Clone and Install**
 
 ```
-git clone <your-repo-url>
+git clone https://github.com/Sanyam2103/Automated-Document-Parsing-Engine.git
 cd getgsa-parser
 python -m venv .venv
-source .venv/bin/activate      # On Windows: .venv\Scripts\activate
+ On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -120,113 +120,3 @@ MIT (or as appropriate for your use).
 
 ***
 
-**How to use:**  
-- Save as `README.md` in the project root.  
-- Replace `<your-repo-url>` with your repo’s actual URL.  
-- Tweak the project folder name as needed.
-
-This README is assignment-ready and covers all core requirements for a recruiter or reviewer. Let me know if you want a more detailed or “production-polished” version!Here’s a complete `README.md` suitable for your FastAPI GetGSA Coding Exercise:
-
-***
-
-# GetGSA Doc Parser
-
-A FastAPI proof-of-concept service for parsing, validating, and mapping company profile and performance texts (simulated pseudo-PDF/DOCX blocks) for government contracts.
-
-***
-
-## Features
-
-- **POST /api/ingest:** Accepts two text blocks (Company Profile & Past Performance), returns extracted, validated fields in structured JSON.
-- **Validation:** Flags missing or invalid values (UEI, bad email, required fields).
-- **Mapping:** Correct NAICS → SIN mapping with deduplication.
-- **Checklist:** Shows if contract conditions are satisfied.
-- **Logging/Audit:** Logs request ID, validation checks, and outcomes to console.
-- **Test Suite:** Detects missing UEI, invalid email, NAICS→SIN mapping.
-- **Minimal UI:** One-page form (see `static/index.html`) for demo/testing.
-
-***
-
-## Quick Start
-
-### 1. Install and Run
-```sh
-git clone <your-repo-url>
-cd getgsa-parser
-
-python -m venv .venv
-source .venv/bin/activate         # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-uvicorn app.main:app --reload
-```
-- Go to [http://localhost:8000/docs](http://localhost:8000/docs) for API docs.
-- Or open [http://localhost:8000/static/index.html](http://localhost:8000/static/index.html) for manual testing.
-
-***
-
-### 2. Run Tests
-
-```sh
-pytest
-```
-Confirms the service catches missing UEI, invalid email, and correct NAICS-to-SIN mapping.
-
-***
-
-## API Example
-
-**POST /api/ingest** (`multipart/form-data`):
-
-- `company_profile`: (text area/pasted text)
-- `past_performance`: (text area/pasted text)
-
-**Sample Response:**
-```json
-{
-  "request_id": "...",
-  "parsed": { ... },
-  "issues": {
-    "missing_uei": false,
-    "invalid_poc_email": false
-  },
-  "recommended_sins": ["54151S"],
-  "checklist": {
-    "required_fields_complete": true,
-    "valid_contact_info": true,
-    "sam_registered": true,
-    "has_past_performance": true
-  }
-}
-```
-***
-
-## Project Structure
-
-- `app/main.py` – API app entrypoint
-- `app/routers/ingest.py` – API endpoint handler
-- `app/services/parser.py` – Parsing extracted fields
-- `app/services/validator.py` – Validation logic for missing/invalid fields
-- `app/services/mapper.py` – NAICS to SIN mapping
-- `tests/test_validation_and_mapping.py` – Unit tests
-- `static/index.html` – Demo/test frontend UI
-
-***
-
-## Logging/Audit
-
-- Every `/api/ingest` call logs:
-  - Request ID
-  - Validation checks run (flags)
-  - Final outcome (issues, recommended SINs, checklist)
-- Log output in your terminal/console (stdout).
-
-***
-
-## License
-
-MIT (or specify as needed for your use).
-
-***
-
-**Assignment Acceptance Criteria: All major functional and audit/test requirements are fully covered.**
