@@ -43,3 +43,20 @@ class IngestResponse(BaseModel):
     issues: ValidationIssues
     recommended_sins: List[str]
     checklist: Checklist
+    doc_summaries: Optional[List[dict]] = None
+
+class DocumentInput(BaseModel):
+    name: Optional[str]= None
+    type_hint: Optional[str] = None
+    text:str
+
+class IngestRequestV2(BaseModel):
+    documents: List[DocumentInput]    
+
+class PricingSheet(BaseModel):
+    labor_categories: List[dict] = []  
+    # [{"category": "Senior Developer", "rate": 185, "unit": "Hour"}]    
+
+class IngestResponseV2(BaseModel):
+    request_id: str
+    doc_summaries: List[dict]    

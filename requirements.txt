@@ -5,3 +5,12 @@ pytest==7.4.3
 httpx==0.25.2
 pytest-cov==4.1.0
 python-multipart==0.0.6
+langchain
+langchain-openai
+langchain-community
+chromadb
+openai
+python-dotenv
+langchain-google-genai
+google-generativeai
+sentence-transformers

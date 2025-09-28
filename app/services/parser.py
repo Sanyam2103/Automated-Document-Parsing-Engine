@@ -1,6 +1,6 @@
 import re
-from typing import List
-from app.models.schemas import CompanyProfile, PastPerformance
+from typing import List,Optional
+from app.models.schemas import CompanyProfile, PastPerformance,PricingSheet
 
 class DocumentParser:
     @staticmethod
@@ -78,3 +78,47 @@ class DocumentParser:
     def _search_field(text, pattern):
         m = re.search(pattern, text)
         return m.group(1).strip() if m else None
+    
+        # ADD this to your existing DocumentParser class
+    @staticmethod
+    def parse_pricing_sheet(text: str) -> PricingSheet:
+        """Parse pricing sheet text into structured data"""
+        labor_categories = []
+        
+        lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
+        for line in lines:
+            # Skip header line
+            if "Labor Category" in line or "Rate" in line:
+                continue
+                
+            # Parse: "Senior Developer, 185, Hour"
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) >= 3:
+                try:
+                    rate = float(parts[1]) if parts[1].replace('.','').isdigit() else None
+                    labor_categories.append({
+                        "category": parts[0],
+                        "rate": rate,
+                        "unit": parts[2]
+                    })
+                except (ValueError, IndexError):
+                    continue
+        
+        return PricingSheet(labor_categories=labor_categories)
+
+    @staticmethod
+    def classify_document(text: str, type_hint: Optional[str] = None) -> str:
+        """Simple document classification"""
+        if type_hint:
+            return type_hint
+        
+        text_lower = text.lower()
+        if any(term in text_lower for term in ["labor category", "rate", "hour", "pricing"]):
+            return "pricing"
+        elif any(term in text_lower for term in ["customer:", "contract:", "value:", "period:"]):
+            return "past_performance"  
+        elif any(term in text_lower for term in ["uei:", "duns:", "naics:", "sam.gov"]):
+            return "profile"
+        else:
+            return "unknown"
+
