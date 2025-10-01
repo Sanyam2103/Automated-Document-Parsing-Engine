@@ -1,7 +1,10 @@
 import re
+
 import hashlib
 import secrets
-from typing import Dict, List, Tuple
+from app.models.schemas import CompanyProfile,PastPerformance
+from typing import Dict, List, Tuple,Any
+from hashlib import sha256
 
 class PIIRedactor:
     # Same patterns as before
@@ -66,6 +69,59 @@ class PIIRedactor:
             })
         
         return redacted_text, pii_hashes
+    
+    @staticmethod
+    def _hash_pii_V2(val: str) -> str:
+        return sha256(val.encode()).hexdigest()[:10]
+
+    @staticmethod
+    def redact_and_hash_companyprofile(profile: CompanyProfile) -> Tuple[CompanyProfile, Dict[str, List[Dict[str, str]]]]:
+        """
+        Redact and hash PII (email, phone) in CompanyProfile.
+        Returns (redacted_companyprofile_dict, pii_hashes_dict)
+        """
+        pii_hashes = {"emails": [], "phones": []}
+        # Get a dict for copying, as pydantic models are immutable by default unless you set allow_mutation
+        data = profile.dict()
+        
+        if data.get("poc_email"):
+            email = data["poc_email"]
+            email_hash = PIIRedactor._hash_pii_V2(email)
+            data["poc_email"] = f"[EMAIL_HASH_{email_hash}]"
+            pii_hashes["emails"].append({ "hash": email_hash, "token": data["poc_email"]})
+        
+        if data.get("poc_phone"):
+            phone = data["poc_phone"]
+            phone_hash = PIIRedactor._hash_pii_V2(phone)
+            data["poc_phone"] = f"[PHONE_HASH_{phone_hash}]"
+            pii_hashes["phones"].append({ "hash": phone_hash, "token": data["poc_phone"]})
+        
+        # Return a new CompanyProfile instance (does not mutate input)
+        redacted_profile = CompanyProfile(**data)
+        return redacted_profile, pii_hashes
+
+    @staticmethod
+    def redact_and_hash_pastperformance(pp:PastPerformance) -> Tuple[PastPerformance, Dict[str, List[Dict[str, str]]]]:
+        """
+        Redact and hash PII (email, phone) in PastPerformance.
+        Returns (redacted_pastperformance_dict, pii_hashes_dict)
+        """
+        pii_hashes = {"emails": [], "phones": []}
+        data = pp.dict()
+        if data.get("contact_email"):
+            email = data["contact_email"]
+            email_hash = PIIRedactor._hash_pii_V2(email)
+            data["contact_email"] = f"[EMAIL_HASH_{email_hash}]"
+            pii_hashes["emails"].append({ "hash": email_hash, "token": data["contact_email"]})
+
+        if data.get("contact_phone"):
+            phone = data["contact_phone"]
+            phone_hash = PIIRedactor._hash_pii_V2(phone)
+            data["contact_phone"] = f"[PHONE_HASH_{phone_hash}]"
+            pii_hashes["phones"].append({"hash": phone_hash, "token": data["contact_phone"]})
+
+        redacted_pp = PastPerformance(**data)
+        return redacted_pp, pii_hashes
     
     @staticmethod
     def verify_email(email_to_verify: str, stored_hash: str) -> bool:

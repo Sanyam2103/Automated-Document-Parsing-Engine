@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from app.routers import ingest
+from fastapi.responses import RedirectResponse 
 import logging
 
 # Configure logging
@@ -18,8 +19,10 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include routers
-app.include_router(ingest.router, prefix="/api", tags=["ingest"])
+app.include_router(ingest.router, prefix="/api")
+
+
 
 @app.get("/")
 async def root():
-    return {"message": "GetGSA Document Parser API"}
+    return RedirectResponse(url="/static/index.html")

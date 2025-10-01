@@ -59,4 +59,4 @@ class PricingSheet(BaseModel):
 
 class IngestResponseV2(BaseModel):
     request_id: str
-    doc_summaries: List[dict]    
+    doc_summaries: List[dict]

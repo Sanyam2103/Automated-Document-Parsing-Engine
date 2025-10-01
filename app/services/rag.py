@@ -10,6 +10,7 @@ import google.generativeai as genai
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+from app.services.validator import HybridValidator
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -123,60 +124,76 @@ class GSARulesRAG:
         """Build policy-aware checklist using RAG and Gemini"""
         
         # Get relevant context from vector store
-        queries = [
-            "UEI DUNS SAM registration requirements",
-            "past performance value requirements 25000", 
-            "pricing labor categories rates requirements"
+        issues = HybridValidator.validate_all_data(parsed_data)
+        problems = []
+        citations = []
+
+        # For each issue, retrieve its corresponding rule doc(s)
+        matched_rules = {}  # Map: issue_id -> (rule_doc/None)
+
+        for issue in issues:
+            # Determine query for rule retrieval (can use category if present, else fallback)
+            query = getattr(issue, "rule_category", "") or getattr(issue, "description", "")
+            rule_docs = self.retrieve_relevant_rules(query, k=1)
+            rule_doc = rule_docs[0] if rule_docs else None
+            matched_rules[issue.issue_id] = rule_doc
+
+            # Extract correct rule_id for each issue from the matched rule doc
+            if rule_doc and "rule_id" in rule_doc.metadata:
+                rule_id = rule_doc.metadata["rule_id"]
+            else:
+                rule_id = "UNKNOWN"
+
+            problems.append({
+                "issue": issue.issue_id,
+                "evidence": issue.evidence,
+                "rule_id": rule_id
+            })
+
+            # Add citation for this rule_doc unless already present (by rule_id)
+            if rule_doc and rule_id != "UNKNOWN" and rule_id not in {c["rule_id"] for c in citations}:
+                citations.append({
+                    "rule_id": rule_id,
+                    "chunk": rule_doc.page_content
+                })
+
+        # Build context block for prompt
+        context = "\n\n".join([f"{c['rule_id']}: {c['chunk']}" for c in citations])
+
+        prompt = f"""
+        You are a GSA compliance expert. Analyze the provided vendor data for GSA rules. Below, issues have already been detected by the system's rule checker and are attributed to specific rule IDs and evidence.
+
+        DO NOT merge evidence or issue descriptions across rules or sections; report each issue using the evidence and rule_id provided.
+        If no issues are present for a rule, do not fabricate evidence or descriptions.
+
+        SYSTEM-DETECTED COMPLIANCE ISSUES:
+        {"; ".join(
+            f"Rule: {p['rule_id']}, Issue: {p['issue']}, Evidence: {p['evidence']}" for p in problems
+        )}
+
+        GSA RULES CONTEXT:
+        {context}
+
+        VENDOR DATA:
+        Company: {str(parsed_data.get("company", {}))}
+        Past Performance: {str(parsed_data.get("past_performance", []))}
+        Pricing: {str(parsed_data.get("pricing", {}))}
+
+        Based on the GSA rules above and the system-detected issues, return a JSON checklist that ONLY includes the issues, evidence, and rule_ids as provided.
+        Response format:
+        {{
+        "required_ok": true/false,
+        "problems": [
+            {{"issue": "issue_id", "evidence": "evidence", "rule_id": "rule_id"}}
+        ],
+        "citations": [
+            {{"rule_id": "R1", "chunk": "rule description"}}
         ]
-        
-        context_docs = []
-        for query in queries:
-            docs = self.retrieve_relevant_rules(query, k=2)
-            context_docs.extend(docs)
-        
-        # Remove duplicates and format context
-        unique_docs = {doc.metadata["rule_id"]: doc for doc in context_docs}
-        context = "\n\n".join([
-            f"{doc.metadata['rule_id']}: {doc.page_content}" 
-            for doc in unique_docs.values()
-        ])
-        
-        # Create prompt for Gemini
-        prompt = f"""You are a GSA compliance expert. Analyze the provided vendor data against GSA rules and generate a detailed compliance checklist.
+        }}
+        Do not invent or infer issues, evidence, or rule references outside of those provided above.
+        Return STRICTLY valid JSON. Do not include any other text, explanations, or formatting.
+        """
 
-GSA RULES CONTEXT:
-{context}
-
-VENDOR DATA:
-Company: {str(parsed_data.get("company", {}))}
-Past Performance: {str(parsed_data.get("past_performance", []))}
-Pricing: {str(parsed_data.get("pricing", {}))}
-
-Based on the GSA rules above, evaluate this vendor's compliance and return a JSON checklist with:
-1. "required_ok": boolean (true if all critical requirements met)
-2. "problems": array of issues found, each with "issue", "evidence", and "rule_id"
-3. "citations": array of rule references used in evaluation
-
-Focus specifically on:
-- UEI format and presence (R1)
-- DUNS number presence (R1)  
-- SAM.gov registration status (R1)
-- Past performance value threshold of $25,000 (R3)
-- Pricing completeness (R4)
-
-IMPORTANT: Return ONLY valid JSON in this exact format:
-{{
-  "required_ok": true/false,
-  "problems": [
-    {{"issue": "issue_name", "evidence": "description", "rule_id": "R1"}}
-  ],
-  "citations": [
-    {{"rule_id": "R1", "chunk": "rule description"}}
-  ]
-}}
-
-Do not include any other text, explanations, or formatting."""
-        
         try:
             response = self.model.generate_content(prompt)
             response_text = response.text.strip()
