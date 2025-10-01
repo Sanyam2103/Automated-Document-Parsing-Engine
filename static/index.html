@@ -383,21 +383,21 @@
                         <div class="result-content">
                             <div class="field">
                                 <div class="field-label">Status:</div>
-                                <div><span class="status ${result.ok ? 'ok' : 'error'}">${result.ok ? 'HEALTHY' : 'UNHEALTHY'}</span></div>
+                                <div><span class="status ${result.status === 'healthy' ? 'ok' : 'error'}">${result.status?.toUpperCase() || 'UNKNOWN'}</span></div>
                             </div>
                             <div class="field">
-                                <div class="field-label">Response:</div>
-                                <div>${JSON.stringify(result)}</div>
+                                <div class="field-label">Version:</div>
+                                <div>${result.version || 'Unknown'}</div>
                             </div>
                             <div class="field">
                                 <div class="field-label">Timestamp:</div>
-                                <div>${new Date().toLocaleString()}</div>
+                                <div>${result.timestamp ? new Date(result.timestamp * 1000).toLocaleString() : 'N/A'}</div>
                             </div>
                         </div>
                     </div>
                 `;
                 
-                updateStatus(result.ok ? 'System healthy' : 'System unhealthy');
+                updateStatus(result.status === 'healthy' ? 'System healthy' : 'System unhealthy');
                 
             } catch (error) {
                 const healthDiv = document.getElementById('health-results');
@@ -431,20 +431,31 @@
                         <div class="result-header">🧪 AI Services Test Results</div>
                         <div class="result-content">
                             <div class="field">
+                                <div class="field-label">Overall Status:</div>
+                                <div><span class="status ${result.overall_status === 'all_services_ready' ? 'ok' : 'error'}">${result.overall_status?.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN'}</span></div>
+                            </div>
+                            <div class="field">
+                                <div class="field-label">Validator:</div>
+                                <div><span class="status ${result.validator?.status === 'available' ? 'ok' : 'error'}">${result.validator?.status?.toUpperCase() || 'UNKNOWN'}</span></div>
+                            </div>
+                            <div class="field">
                                 <div class="field-label">RAG Service:</div>
-                                <div><span class="status ${result.rag === 'available' ? 'ok' : 'error'}">${result.rag || 'Unknown'}</span></div>
+                                <div><span class="status ${result.rag?.status === 'available' ? 'ok' : 'error'}">${result.rag?.status?.toUpperCase() || 'UNKNOWN'}</span></div>
                             </div>
                             <div class="field">
                                 <div class="field-label">LLM Service:</div>
-                                <div><span class="status ${result.llm === 'available' ? 'ok' : 'error'}">${result.llm || 'Unknown'}</span></div>
+                                <div><span class="status ${result.llm?.status === 'available' ? 'ok' : 'error'}">${result.llm?.status?.toUpperCase() || 'UNKNOWN'}</span></div>
                             </div>
-                            ${result.llm_connection ? `
+                            ${result.llm?.connection_test ? `
                                 <div class="field">
                                     <div class="field-label">LLM Connection:</div>
-                                    <div><span class="status ${result.llm_connection.status === 'success' ? 'ok' : 'error'}">${result.llm_connection.status}</span></div>
+                                    <div><span class="status ${result.llm.connection_test.status === 'success' ? 'ok' : 'error'}">${result.llm.connection_test.status?.toUpperCase()}</span></div>
                                 </div>
                             ` : ''}
-                            <div class="code">${JSON.stringify(result, null, 2)}</div>
+                            <details style="margin-top: 15px;">
+                                <summary>Full Test Results</summary>
+                                <div class="code">${JSON.stringify(result, null, 2)}</div>
+                            </details>
                         </div>
                     </div>
                 `;
@@ -480,10 +491,22 @@
                     <div class="result-section">
                         <div class="result-header">🐛 Debug Data for ${requestId}</div>
                         <div class="result-content">
-                            ${renderRedactedData(result.redacted_docs)}
+                            <div class="field">
+                                <div class="field-label">Request ID:</div>
+                                <div>${result.request_id}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-label">Documents:</div>
+                                <div>${result.document_count || 0}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-label">Status:</div>
+                                <div>${result.status || 'Unknown'}</div>
+                            </div>
+                            ${result.redacted_docs ? renderDebugRedactedData(result.redacted_docs) : ''}
                             <details style="margin-top: 15px;">
-                                <summary>Raw Parsed Data</summary>
-                                <div class="code">${JSON.stringify(result.parsed_data, null, 2)}</div>
+                                <summary>Parsed Data Structure</summary>
+                                <div class="code">${JSON.stringify(result.parsed_data || {}, null, 2)}</div>
                             </details>
                         </div>
                     </div>
@@ -497,43 +520,74 @@
             }
         }
         
-        function renderRedactedData(redacted_docs) {
-            let html = '<h4>Redacted Documents:</h4>';
-            
-            if (redacted_docs.company) {
-                html += `
-                    <div class="redacted-section">
-                        <strong>Company Profile (Redacted)</strong><br>
-                        <div>${redacted_docs.company.redacted_text || 'No redacted text'}</div>
-                        <div class="pii-hash">PII Hashes: ${Object.keys(redacted_docs.company.pii_hashes || {}).length} items</div>
+        function renderDebugRedactedData(redacted_docs) {
+    if (!redacted_docs) {
+        return '<p>No redacted documents found.</p>';
+    }
+    
+    let html = '<h4>Document Processing Results:</h4>';
+    
+    // Handle array format
+    if (Array.isArray(redacted_docs)) {
+        redacted_docs.forEach((doc, i) => {
+            html += `
+                <div class="redacted-section" style="margin: 10px 0;">
+                    <strong>Document ${i + 1}: ${doc.name || 'Unnamed'}</strong><br>
+                    <div class="field">
+                        <div class="field-label">Type:</div>
+                        <div>${doc.type || 'Unknown'}</div>
                     </div>
-                `;
-            }
-            
-            if (redacted_docs.past_performance && redacted_docs.past_performance.length > 0) {
-                html += '<h5>Past Performance (Redacted):</h5>';
-                redacted_docs.past_performance.forEach((pp, i) => {
+                    ${doc.error ? `
+                        <div class="field">
+                            <div class="field-label">Error:</div>
+                            <div style="color: #dc2626;">${doc.error}</div>
+                        </div>
+                    ` : ''}
+                    ${doc.pii_hashes ? `
+                        <div class="pii-hash">PII Hashes: ${Object.keys(doc.pii_hashes).length} items protected</div>
+                    ` : ''}
+                    ${doc.redacted_text ? `
+                        <details>
+                            <summary>Redacted Content</summary>
+                            <div class="code" style="max-height: 150px; overflow-y: auto;">${doc.redacted_text}</div>
+                        </details>
+                    ` : ''}
+                </div>
+            `;
+        });
+    }
+    // Handle object format
+    else {
+        ['company', 'past_performance', 'pricing'].forEach(type => {
+            if (redacted_docs[type]) {
+                html += `<h5>${type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}:</h5>`;
+                
+                if (Array.isArray(redacted_docs[type])) {
+                    redacted_docs[type].forEach((item, i) => {
+                        html += `
+                            <div class="redacted-section">
+                                <strong>${type} ${i + 1}:</strong><br>
+                                ${item.redacted_text ? `<div class="code">${item.redacted_text}</div>` : ''}
+                                ${item.pii_hashes ? `<div class="pii-hash">PII: ${Object.keys(item.pii_hashes).length} items</div>` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    const item = redacted_docs[type];
                     html += `
                         <div class="redacted-section">
-                            <strong>Contract ${i + 1}</strong><br>
-                            <div>${pp.redacted_text || 'No redacted text'}</div>
-                            <div class="pii-hash">PII Hashes: ${Object.keys(pp.pii_hashes || {}).length} items</div>
+                            ${item.redacted_text ? `<div class="code">${item.redacted_text}</div>` : ''}
+                            ${item.pii_hashes ? `<div class="pii-hash">PII: ${Object.keys(item.pii_hashes).length} items</div>` : ''}
                         </div>
                     `;
-                });
+                }
             }
-            
-            if (redacted_docs.pricing) {
-                html += `
-                    <div class="redacted-section">
-                        <strong>Pricing (Not Redacted)</strong><br>
-                        <div class="code">${JSON.stringify(redacted_docs.pricing, null, 2)}</div>
-                    </div>
-                `;
-            }
-            
-            return html;
-        }
+        });
+    }
+    
+    return html;
+}
+
         
         function showIngestResults(result) {
             const html = `
@@ -554,9 +608,25 @@
                             ${result.doc_summaries.map(doc => `
                                 <div class="field">
                                     <div class="field-label">${doc.name}:</div>
-                                    <div>${doc.type} (${doc.redacted ? 'PII Redacted' : 'Not Redacted'})</div>
+                                    <div>${doc.type} ${doc.error ? `<span style="color: #dc2626;">(Error: ${doc.error})</span>` : doc.redacted ? '(PII Redacted)' : '(Not Redacted)'}</div>
                                 </div>
                             `).join('')}
+                        ` : ''}
+                        
+                        ${result.processing_stats ? `
+                            <h4>Processing Stats:</h4>
+                            <div class="field">
+                                <div class="field-label">Total:</div>
+                                <div>${result.processing_stats.total_documents}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-label">Successful:</div>
+                                <div>${result.processing_stats.successfully_processed}</div>
+                            </div>
+                            <div class="field">
+                                <div class="field-label">PII Redaction:</div>
+                                <div>${result.processing_stats.pii_redaction_applied ? 'Applied' : 'Not Applied'}</div>
+                            </div>
                         ` : ''}
                         
                         <div style="color: #10b981; margin-top: 15px; font-weight: 600;">
@@ -570,7 +640,7 @@
         
         function showAnalysisResults(result) {
             const checklist = result.checklist || {};
-            const parsed = result.parsed || {}; // This will contain redacted data
+            const parsed = result.parsed || {};
             
             let html = `
                 <div class="result-section">
@@ -580,6 +650,14 @@
                             ${checklist.required_ok ? '✅ COMPLIANT' : '❌ NON-COMPLIANT'}
                         </span>
                         ${checklist.compliance_summary ? `<p style="margin-top: 10px;">${checklist.compliance_summary}</p>` : ''}
+                        ${checklist.issue_breakdown ? `
+                            <div style="margin-top: 10px;">
+                                <strong>Issue Breakdown:</strong>
+                                Blocking: ${checklist.issue_breakdown.blocking || 0}, 
+                                Critical: ${checklist.issue_breakdown.critical || 0}, 
+                                Minor: ${checklist.issue_breakdown.minor || 0}
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -588,11 +666,11 @@
             if (checklist.problems && checklist.problems.length > 0) {
                 html += `
                     <div class="result-section">
-                        <div class="result-header">🚨 Issues Found</div>
+                        <div class="result-header">🚨 Issues Found (${checklist.problems.length})</div>
                         <div class="result-content">
                             ${checklist.problems.map(problem => `
                                 <div style="background: #fef2f2; border-left: 4px solid #f87171; padding: 12px; margin: 10px 0; border-radius: 4px;">
-                                    <strong>${(problem.issue || 'Issue').replace(/_/g, ' ').toUpperCase()}</strong>
+                                    <strong>${(problem.issue || problem.description || 'Issue').replace(/_/g, ' ').toUpperCase()}</strong>
                                     ${problem.rule_id ? `<span style="background: #1d4ed8; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px;">${problem.rule_id}</span>` : ''}
                                     <br><br>
                                     <span style="color: #6b7280;">Evidence:</span> ${problem.evidence || problem.description || 'No details available'}
@@ -604,15 +682,34 @@
                 `;
             }
             
-            // Parsed/Redacted Data Section
+            // Parsed Data Section
             html += `
                 <div class="result-section">
-                    <div class="result-header">📋 Processed Data (PII Redacted)</div>
+                    <div class="result-header">📋 Parsed Data</div>
                     <div class="result-content">
-                        ${renderParsedRedactedData(parsed)}
+                        ${renderParsedData(parsed)}
                     </div>
                 </div>
             `;
+            
+            // Citations Section
+            if (checklist.citations && checklist.citations.length > 0) {
+                html += `
+                    <div class="result-section">
+                        <div class="result-header">📚 Rule Citations (${checklist.citations.length})</div>
+                        <div class="result-content">
+                            ${checklist.citations.map(citation => `
+                                <div style="background: #eff6ff; padding: 12px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #3b82f6;">
+                                    <strong style="color: #1d4ed8;">${citation.rule_id}:</strong><br>
+                                    <span style="color: #4b5563;">${citation.chunk || citation.content || 'No content available'}</span>
+                                    ${citation.addressing_issues && citation.addressing_issues.length > 0 ? `<br><small style="color: #6b7280;">Addresses: ${citation.addressing_issues.join(', ')}</small>` : ''}
+                                    ${citation.source ? `<br><small style="color: #6b7280;">Source: ${citation.source}</small>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
             
             // Strategic Brief Section with enhanced formatting
             if (result.brief) {
@@ -638,18 +735,34 @@
                 `;
             }
             
-            // Citations Section
-            if (checklist.citations && checklist.citations.length > 0) {
+            // Analysis Statistics
+            if (result.analysis_stats) {
                 html += `
                     <div class="result-section">
-                        <div class="result-header">📚 Rule Citations</div>
+                        <div class="result-header">📊 Analysis Statistics</div>
                         <div class="result-content">
-                            ${checklist.citations.map(citation => `
-                                <div style="background: #eff6ff; padding: 12px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #3b82f6;">
-                                    <strong style="color: #1d4ed8;">${citation.rule_id}:</strong><br>
-                                    <span style="color: #4b5563;">${citation.chunk || citation.content || 'No content available'}</span>
+                            <div class="field">
+                                <div class="field-label">Method:</div>
+                                <div>${result.analysis_stats.method || result.analysis_stats.analysis_method || 'Unknown'}</div>
+                            </div>
+                            ${result.analysis_stats.total_issues !== undefined ? `
+                                <div class="field">
+                                    <div class="field-label">Total Issues:</div>
+                                    <div>${result.analysis_stats.total_issues}</div>
                                 </div>
-                            `).join('')}
+                            ` : ''}
+                            ${result.analysis_stats.rules_retrieved !== undefined ? `
+                                <div class="field">
+                                    <div class="field-label">Rules Retrieved:</div>
+                                    <div>${result.analysis_stats.rules_retrieved}</div>
+                                </div>
+                            ` : ''}
+                            ${result.analysis_stats.total_time ? `
+                                <div class="field">
+                                    <div class="field-label">Total Time:</div>
+                                    <div>${result.analysis_stats.total_time.toFixed(3)}s</div>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -665,12 +778,12 @@
                             <div>${result.request_id || 'Unknown'}</div>
                         </div>
                         <div class="field">
-                            <div class="field-label">Powered By:</div>
-                            <div>${result.powered_by || 'Unknown'}</div>
+                            <div class="field-label">Timestamp:</div>
+                            <div>${result.timestamp || new Date().toLocaleString()}</div>
                         </div>
                         <div class="field">
-                            <div class="field-label">Citations:</div>
-                            <div>${checklist.citations ? checklist.citations.length : 0} rules referenced</div>
+                            <div class="field-label">Powered By:</div>
+                            <div>${result.powered_by || 'Unknown'}</div>
                         </div>
                     </div>
                 </div>
@@ -689,50 +802,123 @@
             `;
         }
         
-        function renderParsedRedactedData(parsed) {
+        function renderParsedData(parsed) {
             if (!parsed || Object.keys(parsed).length === 0) {
                 return '<p style="color: #6b7280;">No parsed data available</p>';
             }
-            
-            let html = '';
-            
-            // Company data (redacted)
-            if (parsed.company) {
-                html += '<h4 style="color: #1f2937; margin-bottom: 10px;">🏢 Company Information (Redacted)</h4>';
-                html += '<div class="redacted-section">';
-                if (parsed.company.redacted_text) {
-                    html += `<div><strong>Redacted Text:</strong><br>${parsed.company.redacted_text}</div>`;
+
+            // If parsed is a redacted_docs object (from backend), render its structure
+            if (
+                typeof parsed === "object" &&
+                (
+                    parsed.company ||
+                    (parsed.past_performance && Array.isArray(parsed.past_performance)) ||
+                    parsed.pricing
+                )
+            ) {
+                // Show pretty JSON for the entire parsed object
+                return `<pre class="code" style="white-space: pre-wrap; background: #f1f5f9; border-radius: 6px; font-size: 13px; max-height: 400px; overflow-y: auto;">${JSON.stringify(parsed, null, 2)}</pre>`;
+            }
+
+            // Handle standard parsed data structure (fallback)
+            else {
+                // Company Information
+                if (parsed.company) {
+                    html += '<h4 style="color: #1f2937; margin-bottom: 10px;">🏢 Company Information</h4>';
+                    html += '<div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px;">';
+                    
+                    Object.entries(parsed.company).forEach(([key, value]) => {
+                        if (value != null && key !== '_metadata' && value !== '') {
+                            const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
+                            html += `
+                                <div class="field">
+                                    <div class="field-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</div>
+                                    <div>${displayValue}</div>
+                                </div>
+                            `;
+                        }
+                    });
+                    html += '</div>';
                 }
-                if (parsed.company.pii_hashes) {
-                    html += `<div class="pii-hash"><strong>PII Hashes:</strong> ${Object.keys(parsed.company.pii_hashes).length} items protected</div>`;
+                
+                // Past Performance
+                if (parsed.past_performance && parsed.past_performance.length > 0) {
+                    html += '<h4 style="color: #1f2937; margin-bottom: 10px;">📈 Past Performance</h4>';
+                    
+                    parsed.past_performance.forEach((pp, i) => {
+                        html += `<div style="background: #f0f9ff; border: 1px solid #e0f2fe; padding: 12px; margin: 8px 0; border-radius: 6px;">`;
+                        html += `<strong style="color: #0369a1;">Contract ${i + 1}:</strong><br>`;
+                        
+                        Object.entries(pp).forEach(([key, value]) => {
+                            if (value != null && value !== '') {
+                                html += `
+                                    <div class="field">
+                                        <div class="field-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</div>
+                                        <div>${value}</div>
+                                    </div>
+                                `;
+                            }
+                        });
+                        html += '</div>';
+                    });
                 }
+                
+                // Pricing Information
+                if (parsed.pricing) {
+                    html += '<h4 style="color: #1f2937; margin-bottom: 10px;">💰 Pricing Information</h4>';
+                    html += '<div style="background: #f0fdf4; padding: 12px; border-radius: 6px; margin-bottom: 15px;">';
+                    
+                    if (parsed.pricing.labor_categories && parsed.pricing.labor_categories.length > 0) {
+                        html += '<h5 style="margin-bottom: 8px;">Labor Categories:</h5>';
+                        parsed.pricing.labor_categories.forEach((cat, i) => {
+                            html += `
+                                <div style="background: white; border: 1px solid #d1d5db; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                                    <div class="field">
+                                        <div class="field-label">Category:</div>
+                                        <div>${cat.category || `Category ${i + 1}`}</div>
+                                    </div>
+                                    <div class="field">
+                                        <div class="field-label">Rate:</div>
+                                        <div>$${cat.rate || 'N/A'}</div>
+                                    </div>
+                                    <div class="field">
+                                        <div class="field-label">Unit:</div>
+                                        <div>${cat.unit || 'N/A'}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<p style="color: #6b7280;">No labor categories found</p>';
+                    }
+                    html += '</div>';
+                }
+            }
+            
+            // Show any additional fields not covered above
+            const excludeKeys = ['company', 'past_performance', 'pricing', 'redacted_docs', '_metadata'];
+            const otherFields = Object.entries(parsed).filter(([key]) => !excludeKeys.includes(key));
+            
+            if (otherFields.length > 0) {
+                html += '<h4 style="color: #1f2937; margin-bottom: 10px;">📄 Additional Fields</h4>';
+                html += '<div style="background: #faf5ff; padding: 12px; border-radius: 6px;">';
+                
+                otherFields.forEach(([key, value]) => {
+                    if (value != null) {
+                        html += `
+                            <div class="field">
+                                <div class="field-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</div>
+                                <div>${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</div>
+                            </div>
+                        `;
+                    }
+                });
                 html += '</div>';
             }
             
-            // Past Performance data (redacted)
-            if (parsed.past_performance && parsed.past_performance.length > 0) {
-                html += '<h4 style="color: #1f2937; margin-bottom: 10px;">📈 Past Performance (Redacted)</h4>';
-                parsed.past_performance.forEach((pp, i) => {
-                    html += '<div class="redacted-section">';
-                    html += `<strong>Contract ${i + 1}:</strong><br>`;
-                    if (pp.redacted_text) {
-                        html += `<div>${pp.redacted_text}</div>`;
-                    }
-                    if (pp.pii_hashes) {
-                        html += `<div class="pii-hash">PII Hashes: ${Object.keys(pp.pii_hashes).length} items</div>`;
-                    }
-                    html += '</div>';
-                });
-            }
-            
-            // Pricing data (not redacted)
-            if (parsed.pricing) {
-                html += '<h4 style="color: #1f2937; margin-bottom: 10px;">💰 Pricing Information</h4>';
-                html += `<div class="code">${JSON.stringify(parsed.pricing, null, 2)}</div>`;
-            }
-            
-            return html || '<p style="color: #6b7280;">No processed data found</p>';
+            return html || '<p style="color: #6b7280;">No structured data found</p>';
         }
+
         
         function formatBriefContent(brief) {
             if (!brief) return 'No brief available';
@@ -740,43 +926,124 @@
             // Format the brief with better paragraph breaks and emphasis
             return brief
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold markdown
-                .replace(/\n\n/g, '</p><p>') // Paragraph breaks
+                .replace(/\n\n/g, '</p><p style="margin-bottom: 15px;">') // Paragraph breaks
                 .replace(/\n/g, '<br>') // Line breaks
-                .replace(/^/, '<p>') // Start paragraph
+                .replace(/^/, '<p style="margin-bottom: 15px;">') // Start paragraph
                 .replace(/$/, '</p>'); // End paragraph
         }
         
         function formatEmailContent(email) {
-            if (!email) return 'No email available';
-            
-            // Split into subject and body
-            const lines = email.split('\n');
-            let subject = '';
-            let body = '';
-            let isBody = false;
-            
-            for (const line of lines) {
-                if (line.toLowerCase().startsWith('subject:')) {
-                    subject = line;
-                } else if (line.trim() === '' && subject) {
-                    isBody = true;
-                } else if (isBody) {
-                    body += line + '\n';
-                } else if (!subject) {
-                    body += line + '\n';
-                }
-            }
-            
-            let formattedEmail = '';
-            
-            if (subject) {
-                formattedEmail += `<div class="email-header">${subject}</div>`;
-            }
-            
-            formattedEmail += `<div style="white-space: pre-line; line-height: 1.6;">${body.trim()}</div>`;
-            
-            return formattedEmail;
+    if (!email) return 'No email available';
+    
+    // Clean and process the email text
+    const cleanEmail = email.trim();
+    
+    // Split into lines for processing
+    const lines = cleanEmail.split('\n');
+    
+    let subject = '';
+    let sender = '';
+    let date = '';
+    let body = '';
+    let isBodySection = false;
+    
+    // Parse email headers and body
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.toLowerCase().startsWith('subject:')) {
+            subject = line.substring(8).trim();
         }
+        else if (line.toLowerCase().startsWith('from:')) {
+            sender = line.substring(5).trim();
+        }
+        else if (line.toLowerCase().startsWith('date:')) {
+            date = line.substring(5).trim();
+        }
+        else if (line.toLowerCase().startsWith('to:')) {
+            // Skip To: line, we'll handle it in body
+        }
+        else if (line === '' && !isBodySection && (subject || i > 2)) {
+            isBodySection = true;
+        }
+        else if (isBodySection || (!subject && !line.includes(':'))) {
+            body += line + '\n';
+            isBodySection = true;
+        }
+        else if (!isBodySection) {
+            body += line + '\n';
+        }
+    }
+    
+    // Build formatted email
+    let formattedEmail = '';
+    
+    // Email headers section
+    if (subject || sender || date) {
+        formattedEmail += '<div class="email-header">';
+        
+        if (subject) {
+            formattedEmail += `<div style="font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 8px;">📧 ${subject}</div>`;
+        }
+        
+        if (sender) {
+            formattedEmail += `<div style="color: #6b7280; margin-bottom: 4px;"><strong>From:</strong> ${sender}</div>`;
+        }
+        
+        if (date) {
+            formattedEmail += `<div style="color: #6b7280; margin-bottom: 4px;"><strong>Date:</strong> ${date}</div>`;
+        }
+        
+        formattedEmail += '</div>';
+    }
+    
+    // Email body section
+    const bodyContent = body.trim();
+    if (bodyContent) {
+        // Process body formatting
+        let formattedBody = bodyContent
+            // Markdown bold (**text**)
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Handle greeting
+            .replace(/(Dear [^,\n]+,?)/gi, '<div style="margin-bottom: 15px; font-weight: 600;">$1</div>')
+            // Handle sign-off
+            .replace(/(Best regards,|Sincerely,|Thank you,|Regards,)\s*\n/gi, '<div style="margin-top: 20px; margin-bottom: 5px;">$1</div>')
+            // Handle bullet points
+            .replace(/^[\s]*[•\-\*]\s*/gm, '• ')
+            .replace(/^• /gm, '<div style="margin: 5px 0; padding-left: 15px;">• ')
+            .replace(/\n(?=• )/g, '</div>\n')
+            // Handle numbered lists
+            .replace(/^\s*\d+\.\s+/gm, (match) => `<div style="margin: 5px 0; padding-left: 15px;">${match}`)
+            // Handle paragraphs
+            .replace(/\n\s*\n/g, '</p><p style="margin: 12px 0; line-height: 1.6;">')
+            // Handle single line breaks
+            .replace(/\n/g, '<br>')
+            // Wrap in paragraph tags
+            .replace(/^/, '<p style="margin: 12px 0; line-height: 1.6;">')
+            .replace(/$/, '</p>');
+        
+        // Close any unclosed bullet point divs
+        formattedBody = formattedBody.replace(/(<div[^>]*>• [^<]*?)(?=<p|$)/g, '$1</div>');
+        
+        // Handle special GSA formatting
+        formattedBody = formattedBody
+            // Highlight rule references
+            .replace(/\b(R\d+|Rule \d+)\b/g, '<span style="background: #eff6ff; color: #1d4ed8; padding: 1px 4px; border-radius: 3px; font-weight: 600;">$1</span>')
+            // Highlight compliance terms
+            .replace(/\b(compliant|non-compliant|compliance|requirements?)\b/gi, '<span style="font-weight: 600; color: #059669;">$1</span>')
+            // Highlight important terms
+            .replace(/\b(IMPORTANT|NOTE|ATTENTION|REQUIRED)\b/g, '<span style="background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 3px; font-weight: 700; font-size: 11px;">$1</span>')
+            // Format email addresses
+            .replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color: #2563eb; text-decoration: underline;">$1</a>')
+            // Format phone numbers
+            .replace(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/g, '<span style="color: #059669; font-weight: 500;">$1</span>');
+        
+        formattedEmail += `<div style="margin-top: 15px; line-height: 1.6;">${formattedBody}</div>`;
+    }
+    
+    return formattedEmail;
+}
+
         
         function showTab(tabName) {
             // Hide all tab contents
@@ -833,3 +1100,63 @@
     </script>
 </body>
 </html>
+    
+    <!-- return formattedEmail;
+}
+
+        
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab and mark as active
+            document.getElementById(tabName).style.display = 'block';
+            event.target.classList.add('active');
+        }
+        
+        function showLoading(elementId, message) {
+            document.getElementById(elementId).innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    ${message}
+                </div>
+            `;
+        }
+        
+        function showError(elementId, message) {
+            document.getElementById(elementId).innerHTML = `
+                <div class="result-section">
+                    <div class="result-header">❌ Error</div>
+                    <div class="result-content">${message}</div>
+                </div>
+            `;
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('system-status').textContent = message;
+        }
+        
+        function clearAll() {
+            if (confirm('Clear all data and reset interface?')) {
+                currentRequestId = null;
+                document.getElementById('current-request').textContent = 'None';
+                document.getElementById('analyze-btn').disabled = true;
+                document.getElementById('results-content').innerHTML = '<div class="loading">No analysis results yet.</div>';
+                document.getElementById('debug-results').innerHTML = 'No debug data loaded.';
+                document.getElementById('health-results').innerHTML = 'Click "Health Check" to test system status.';
+                document.getElementById('service-results').innerHTML = 'Click "Test AI Services" to check availability.';
+                document.getElementById('raw-results').innerHTML = 'Raw API responses will appear here.';
+                
+                // Reset document inputs
+                const container = document.getElementById('documents-container');
+                container.innerHTML = '';
+                addDocument();
+                
+                updateStatus('Interface reset');
+            }
+        }
+    </script>
+</body>
+</html> -->

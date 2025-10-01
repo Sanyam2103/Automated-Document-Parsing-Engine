@@ -34,7 +34,7 @@ class CustomEmbeddings(Embeddings):
 class GSARulesRAG:
     """Production RAG system using direct Google GenAI"""
     
-    def __init__(self):
+    def __init__(self, rules_documents=None):
         # Initialize custom embeddings
         self.embeddings = CustomEmbeddings()
         
@@ -42,33 +42,60 @@ class GSARulesRAG:
         self.model = genai.GenerativeModel('gemini-2.0-flash')
         
         # GSA Rules Pack from assignment
-        self.rules_documents = [
-            Document(
-                page_content="Identity & Registry: Required UEI (12 chars), DUNS (9 digits), and active SAM.gov registration. Primary contact must have valid email and phone.",
-                metadata={"rule_id": "R1", "title": "Identity & Registry", "category": "identity"}
-            ),
-            Document(
-                page_content="NAICS & SIN Mapping: 541511 maps to 54151S, 541512 maps to 54151S, 541611 maps to 541611, 518210 maps to 518210C",
-                metadata={"rule_id": "R2", "title": "NAICS & SIN Mapping", "category": "mapping"}
-            ),
-            Document(
-                page_content="Past Performance: At least 1 past performance contract ≥ $25,000 within last 36 months. Must include customer name, contract value, period, and contact email.",
-                metadata={"rule_id": "R3", "title": "Past Performance", "category": "performance"}
-            ),
-            Document(
-                page_content="Pricing & Catalog: Provide labor categories and rates in structured sheet. If missing rate basis or units, flag pricing_incomplete.",
-                metadata={"rule_id": "R4", "title": "Pricing & Catalog", "category": "pricing"}
-            ),
-            Document(
-                page_content="Submission Hygiene: All personally identifiable information must be stored in redacted form. Only derived fields and hashes are stored by default.",
-                metadata={"rule_id": "R5", "title": "Submission Hygiene", "category": "security"}
-            )
-        ]
+        if rules_documents is not None:
+            self.rules_documents = [
+                Document(
+                    page_content="NAICS & SIN Mapping: 541511 maps to 54151S, 541512 maps to 54151S, 541611 maps to 541611, 518210 maps to 518210C",
+                    metadata={"rule_id": "R2", "title": "NAICS & SIN Mapping", "category": "mapping"}
+                ),
+                Document(
+                    page_content="Past Performance: At least 1 past performance contract ≥ $25,000 within last 36 months. Must include customer name, contract value, period, and contact email.",
+                    metadata={"rule_id": "R3", "title": "Past Performance", "category": "performance"}
+                ),
+                Document(
+                    page_content="Pricing & Catalog: Provide labor categories and rates in structured sheet. If missing rate basis or units, flag pricing_incomplete.",
+                    metadata={"rule_id": "R4", "title": "Pricing & Catalog", "category": "pricing"}
+                ),
+                Document(
+                    page_content="Submission Hygiene: All personally identifiable information must be stored in redacted form. Only derived fields and hashes are stored by default.",
+                    metadata={"rule_id": "R5", "title": "Submission Hygiene", "category": "security"}
+                )]
+        else:
+            self.rules_documents = [
+                Document(
+                    page_content="Identity & Registry: Required UEI (12 chars), DUNS (9 digits), and active SAM.gov registration. Primary contact must have valid email and phone.",
+                    metadata={"rule_id": "R1", "title": "Identity & Registry", "category": "identity"}
+                ),
+                Document(
+                    page_content="NAICS & SIN Mapping: 541511 maps to 54151S, 541512 maps to 54151S, 541611 maps to 541611, 518210 maps to 518210C",
+                    metadata={"rule_id": "R2", "title": "NAICS & SIN Mapping", "category": "mapping"}
+                ),
+                Document(
+                    page_content="Past Performance: At least 1 past performance contract ≥ $25,000 within last 36 months. Must include customer name, contract value, period, and contact email.",
+                    metadata={"rule_id": "R3", "title": "Past Performance", "category": "performance"}
+                ),
+                Document(
+                    page_content="Pricing & Catalog: Provide labor categories and rates in structured sheet. If missing rate basis or units, flag pricing_incomplete.",
+                    metadata={"rule_id": "R4", "title": "Pricing & Catalog", "category": "pricing"}
+                ),
+                Document(
+                    page_content="Submission Hygiene: All personally identifiable information must be stored in redacted form. Only derived fields and hashes are stored by default.",
+                    metadata={"rule_id": "R5", "title": "Submission Hygiene", "category": "security"}
+                )
+            ]
         
         # Initialize vector store
         self.vectorstore = None
         self._initialize_vectorstore()
-    
+
+    # @classmethod
+    # def with_rules_override(cls, rules_documents):
+    #     """
+    #     Alternate constructor to initialize GSARulesRAG with a custom rules_documents list.
+    #     Example: To test without R1, pass a rules list excluding R1.
+    #     """
+    #     return cls(rules_documents=rules_documents)
+
     def _initialize_vectorstore(self):
         """Initialize ChromaDB vector store with GSA rules"""
         try:
