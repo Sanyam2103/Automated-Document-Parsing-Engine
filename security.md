@@ -1,4 +1,4 @@
-```
+
 # Security & Data Protection
 
 This document outlines the security measures, data protection policies, and abuse prevention mechanisms implemented in the GSA Document Analyzer system.
@@ -263,5 +263,5 @@ PROCESSING_TIMEOUT_SECONDS=30
 6. **Documentation**: Record lessons learned
 
 This security framework ensures the GSA Document Analyzer maintains the highest standards of data protection and system security required for government applications.
-```
+
 
