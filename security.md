@@ -1,4 +1,4 @@
-```markdown
+```
 # Security & Data Protection
 
 This document outlines the security measures, data protection policies, and abuse prevention mechanisms implemented in the GSA Document Analyzer system.
